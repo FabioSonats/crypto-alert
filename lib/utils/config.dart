@@ -101,10 +101,10 @@ class Config {
 
 /// Períodos disponíveis para o gráfico
 enum ChartPeriod {
-  hours24('24H', 1),    // 24 horas = 1 dia
-  days7('7D', 7),       // 7 dias
-  month1('1M', 30),     // 1 mês
-  year1('1A', 365);     // 1 ano
+  hours24('24H', 1), // 24 horas = 1 dia
+  days7('7D', 7), // 7 dias
+  month1('1M', 30), // 1 mês
+  year1('1A', 365); // 1 ano
 
   final String label;
   final int days;

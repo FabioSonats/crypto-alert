@@ -44,8 +44,8 @@ class ChartPeriodSelector extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected 
-                      ? Colors.white 
+                  color: isSelected
+                      ? Colors.white
                       : theme.colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),

@@ -76,7 +76,7 @@ class CryptoController extends ChangeNotifier {
       _prices = newPrices.map((price) {
         final previous = previousPrices[price.coinId];
         var history = _priceHistories[price.coinId] ?? [];
-        
+
         // Adiciona o preço atual como último ponto do gráfico (tempo real)
         if (history.isNotEmpty) {
           final updatedHistory = List<PricePoint>.from(history);
@@ -89,7 +89,7 @@ class CryptoController extends ChangeNotifier {
           history = updatedHistory;
           _priceHistories[price.coinId] = history;
         }
-        
+
         return price.copyWith(
           previousPriceBrl: previous?.priceBrl,
           previousPriceUsd: previous?.priceUsd,
@@ -108,8 +108,9 @@ class CryptoController extends ChangeNotifier {
   }
 
   /// Carrega o histórico de preços para gráficos
-  Future<void> loadPriceHistories() async {
-    if (_isLoadingHistory) return;
+  /// [force] ignora a verificação de loading para forçar recarregamento
+  Future<void> loadPriceHistories({bool force = false}) async {
+    if (_isLoadingHistory && !force) return;
 
     _isLoadingHistory = true;
     _failedHistories.clear();
@@ -150,11 +151,24 @@ class CryptoController extends ChangeNotifier {
   /// Muda o período do gráfico e recarrega o histórico
   Future<void> changePeriod(ChartPeriod period) async {
     if (_currentPeriod == period) return;
-    
+
     _currentPeriod = period;
-    notifyListeners();
     
-    await loadPriceHistories();
+    // Limpa históricos antigos para forçar recarregamento
+    _priceHistories.clear();
+    _failedHistories.clear();
+    
+    // Atualiza UI para mostrar loading nos gráficos
+    _prices = _prices.map((price) {
+      return price.copyWith(priceHistory: []);
+    }).toList();
+    
+    _isLoadingHistory = true;
+    notifyListeners();
+
+    debugPrint('📊 Mudando período para ${period.label} (${period.days} dias)');
+    
+    await loadPriceHistories(force: true);
   }
 
   /// Agenda retry para históricos que falharam
@@ -208,7 +222,8 @@ class CryptoController extends ChangeNotifier {
   /// Recarrega o histórico de uma moeda específica
   Future<void> reloadHistoryFor(String coinId) async {
     try {
-      debugPrint('Recarregando histórico de $coinId (${_currentPeriod.days} dias)...');
+      debugPrint(
+          'Recarregando histórico de $coinId (${_currentPeriod.days} dias)...');
       final history = await _cryptoService.fetchPriceHistory(
         coinId,
         days: _currentPeriod.days,
@@ -246,19 +261,19 @@ class CryptoController extends ChangeNotifier {
   /// Inicia a atualização automática
   void startAutoUpdate() {
     stopAutoUpdate();
-    
+
     // Timer para atualização de preços (a cada 60s)
     _updateTimer = Timer.periodic(
       Duration(seconds: Config.defaultUpdateInterval),
       (_) => updatePrices(),
     );
-    
+
     // Timer para atualização de histórico (a cada 5 minutos)
     _historyUpdateTimer = Timer.periodic(
       const Duration(minutes: 5),
       (_) => loadPriceHistories(),
     );
-    
+
     // Carrega dados iniciais
     updatePrices();
     loadPriceHistories();
