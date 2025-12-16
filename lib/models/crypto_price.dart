@@ -30,6 +30,12 @@ class CryptoPrice {
   /// Preço anterior em USD
   final double? previousPriceUsd;
 
+  /// Variação percentual 24h em USD (da API)
+  final double? change24hUsd;
+
+  /// Variação percentual 24h em BRL (da API)
+  final double? change24hBrl;
+
   /// Histórico de preços para o gráfico (últimos 7 dias)
   final List<PricePoint>? priceHistory;
 
@@ -41,6 +47,8 @@ class CryptoPrice {
     required this.lastUpdate,
     this.previousPriceBrl,
     this.previousPriceUsd,
+    this.change24hUsd,
+    this.change24hBrl,
     this.priceHistory,
   });
 
@@ -53,21 +61,11 @@ class CryptoPrice {
   /// Cor da criptomoeda (para UI)
   int get colorValue => Config.coinColors[coinId] ?? 0xFF2196F3;
 
-  /// Calcula a variação percentual em relação ao preço anterior (BRL)
-  double? get variationPercentageBrl {
-    if (previousPriceBrl == null || previousPriceBrl == 0) {
-      return null;
-    }
-    return ((priceBrl - previousPriceBrl!) / previousPriceBrl!) * 100;
-  }
+  /// Retorna a variação percentual 24h em BRL (da API)
+  double? get variationPercentageBrl => change24hBrl;
 
-  /// Calcula a variação percentual em relação ao preço anterior (USD)
-  double? get variationPercentageUsd {
-    if (previousPriceUsd == null || previousPriceUsd == 0) {
-      return null;
-    }
-    return ((priceUsd - previousPriceUsd!) / previousPriceUsd!) * 100;
-  }
+  /// Retorna a variação percentual 24h em USD (da API)
+  double? get variationPercentageUsd => change24hUsd;
 
   /// Retorna a tendência do preço
   PriceTrend get trend {
@@ -106,6 +104,8 @@ class CryptoPrice {
     DateTime? lastUpdate,
     double? previousPriceBrl,
     double? previousPriceUsd,
+    double? change24hUsd,
+    double? change24hBrl,
     List<PricePoint>? priceHistory,
   }) {
     return CryptoPrice(
@@ -115,6 +115,8 @@ class CryptoPrice {
       lastUpdate: lastUpdate ?? this.lastUpdate,
       previousPriceBrl: previousPriceBrl ?? this.previousPriceBrl,
       previousPriceUsd: previousPriceUsd ?? this.previousPriceUsd,
+      change24hUsd: change24hUsd ?? this.change24hUsd,
+      change24hBrl: change24hBrl ?? this.change24hBrl,
       priceHistory: priceHistory ?? this.priceHistory,
     );
   }
