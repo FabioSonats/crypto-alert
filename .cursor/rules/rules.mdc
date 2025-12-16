@@ -1,0 +1,60 @@
+---
+alwaysApply: true
+---
+
+# Crypto Alert - Regras do Projeto
+
+## Sobre o Projeto
+Aplicativo Flutter para monitoramento de preço do Bitcoin em tempo real com sugestões de compra/venda baseadas na variação percentual.
+
+## Arquitetura
+- **Padrão**: MVC simplificado com ValueNotifier
+- **Controllers**: Gerenciam estado e lógica de negócio
+- **Services**: Comunicação com APIs externas
+- **Models**: Classes de dados imutáveis
+- **UI**: Screens e Widgets reutilizáveis
+
+### Estrutura de Pastas
+```
+lib/
+├── controllers/    # Lógica de negócio (BitcoinController)
+├── services/       # APIs externas (CoinGecko, Firebase)
+├── models/         # Modelos de dados (BitcoinPrice)
+├── ui/
+│   ├── screens/    # Telas do app
+│   └── widgets/    # Componentes reutilizáveis
+└── utils/          # Configurações centralizadas
+```
+
+## Convenções de Código
+- Usar documentação com `///` para classes e métodos públicos
+- Seguir princípios SOLID
+- Nomes em inglês para código, comentários em português
+- Usar `const` sempre que possível
+- Widgets devem ser stateless quando não precisarem de estado local
+
+## Dependências Principais
+- `http`: Requisições HTTP
+- `intl`: Formatação de números/moedas
+- Firebase (a configurar): Analytics
+
+## API
+- CoinGecko API (gratuita, sem autenticação)
+- Endpoint: `/simple/price?ids=bitcoin&vs_currencies=usd,brl`
+- Base URL: `https://api.coingecko.com/api/v3`
+
+## Configurações (lib/utils/config.dart)
+- Threshold de variação: 3% (Config.defaultVariationThreshold)
+- Intervalo de atualização: 60s (Config.defaultUpdateInterval)
+- Timeout de requisições: 10s (Config.requestTimeout)
+
+## Lógica de Sugestão de Ação
+- Variação < -3% → COMPRAR (verde)
+- Variação > +3% → VENDER (vermelho)
+- Entre -3% e +3% → MANTER (laranja)
+
+## Próximos Passos
+- [ ] Configurar Firebase Analytics
+- [ ] Adicionar notificações push
+- [ ] Implementar gráfico de histórico
+- [ ] Adicionar mais criptomoedas
