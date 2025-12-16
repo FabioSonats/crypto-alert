@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../models/crypto_price.dart';
 import '../../models/investment.dart';
+import '../../services/settings_service.dart';
 import 'trend_indicator.dart';
 import 'price_chart.dart';
 
 /// Card que exibe informações de uma criptomoeda
 ///
-/// Inclui: nome, símbolo, preço, variação, tendência, gráfico e investimento
+/// Inclui: nome, símbolo, preço, variação, tendência, gráfico, ação sugerida e investimento
 class CryptoCard extends StatelessWidget {
   /// Dados de preço da criptomoeda
   final CryptoPrice price;
@@ -19,6 +20,9 @@ class CryptoCard extends StatelessWidget {
 
   /// Investimento simulado (opcional)
   final Investment? investment;
+
+  /// Ação sugerida (COMPRAR/VENDER/MANTER)
+  final SuggestedAction? suggestedAction;
 
   /// Callback ao tocar no card
   final VoidCallback? onTap;
@@ -35,6 +39,7 @@ class CryptoCard extends StatelessWidget {
     this.currency = 'BRL',
     this.isLoadingHistory = false,
     this.investment,
+    this.suggestedAction,
     this.onTap,
     this.onInvestmentTap,
     this.onChartRetry,
@@ -128,7 +133,7 @@ class CryptoCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Preço e variação
+              // Preço, variação e badge de ação
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -152,7 +157,7 @@ class CryptoCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  // Variação
+                  // Variação + Badge de ação
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -190,14 +195,64 @@ class CryptoCard extends StatelessWidget {
                 ],
               ),
 
-              // Seção de Investimento
-              if (investment != null || onInvestmentTap != null) ...[
-                const Divider(height: 24),
-                _buildInvestmentSection(context, coinColor),
+              // Badge de ação sugerida
+              if (suggestedAction != null) ...[
+                const SizedBox(height: 12),
+                _buildActionBadge(theme),
               ],
+
+              // Seção de Investimento
+              const Divider(height: 24),
+              _buildInvestmentSection(context, coinColor),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Badge de ação sugerida (COMPRAR/VENDER/MANTER)
+  Widget _buildActionBadge(ThemeData theme) {
+    final actionInfo = SettingsService.getActionInfo(suggestedAction!);
+    final color = Color(actionInfo.colorValue);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            suggestedAction == SuggestedAction.buy
+                ? Icons.trending_down
+                : suggestedAction == SuggestedAction.sell
+                    ? Icons.trending_up
+                    : Icons.trending_flat,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            actionInfo.label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            actionInfo.description,
+            style: TextStyle(
+              color: color.withOpacity(0.8),
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -206,33 +261,60 @@ class CryptoCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (investment == null) {
-      // Sem investimento - mostrar botão para adicionar
-      return InkWell(
-        onTap: onInvestmentTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            color: coinColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: coinColor.withOpacity(0.3),
-              style: BorderStyle.solid,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle_outline, color: coinColor, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Simular investimento',
-                style: TextStyle(
-                  color: coinColor,
-                  fontWeight: FontWeight.w500,
-                ),
+      // Sem investimento - mostrar botão pill intuitivo
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onInvestmentTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  coinColor.withOpacity(0.15),
+                  coinColor.withOpacity(0.08),
+                ],
               ),
-            ],
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: coinColor.withOpacity(0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: coinColor.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: coinColor,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Simular',
+                  style: TextStyle(
+                    color: coinColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: coinColor.withOpacity(0.6),
+                  size: 14,
+                ),
+              ],
+            ),
           ),
         ),
       );

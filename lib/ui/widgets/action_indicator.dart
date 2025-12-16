@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../controllers/bitcoin_controller.dart';
+
+/// Enum para representar as ações sugeridas
+enum SuggestedAction {
+  buy, // Comprar
+  sell, // Vender
+  hold, // Manter
+}
 
 /// Widget para exibir o indicador visual de ação sugerida
 class ActionIndicator extends StatelessWidget {

@@ -54,12 +54,13 @@ class CryptoService {
   }
 
   /// Busca o histórico de preços de uma moeda para o gráfico
-  Future<List<PricePoint>> fetchPriceHistory(String coinId) async {
+  /// [days] define o período: 1 (24h), 7 (semana), 30 (mês), 365 (ano)
+  Future<List<PricePoint>> fetchPriceHistory(String coinId, {int days = 7}) async {
     try {
       final uri = Uri.parse(
         '${Config.coinGeckoBaseUrl}/coins/$coinId/market_chart'
         '?vs_currency=usd'
-        '&days=${Config.chartHistoryDays}',
+        '&days=$days',
       );
 
       debugPrint('Buscando histórico de $coinId: $uri');
@@ -127,13 +128,14 @@ class CryptoService {
   }
 
   /// Busca histórico de todas as moedas
-  Future<Map<String, List<PricePoint>>> fetchAllPriceHistories() async {
+  /// [days] define o período para todas as moedas
+  Future<Map<String, List<PricePoint>>> fetchAllPriceHistories({int days = 7}) async {
     final histories = <String, List<PricePoint>>{};
 
     for (final coinId in Config.supportedCoins) {
       try {
-        debugPrint('Buscando histórico de $coinId...');
-        final history = await fetchPriceHistory(coinId);
+        debugPrint('Buscando histórico de $coinId ($days dias)...');
+        final history = await fetchPriceHistory(coinId, days: days);
         histories[coinId] = history;
         debugPrint('Histórico $coinId: ${history.length} pontos');
 

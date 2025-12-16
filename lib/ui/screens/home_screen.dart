@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import '../../controllers/crypto_controller.dart';
 import '../../models/investment.dart';
 import '../../services/investment_service.dart';
+import '../../services/settings_service.dart';
+import '../../services/tesouro_service.dart';
 import '../../utils/config.dart';
 import '../widgets/crypto_card.dart';
 import '../widgets/investment_input.dart';
 import '../widgets/portfolio_summary_card.dart';
+import '../widgets/price_chart.dart';
+import '../widgets/tesouro_card.dart';
+import 'settings_screen.dart';
 
 /// Tela principal do aplicativo Crypto Alert
 ///
 /// Exibe as 3 criptomoedas: Bitcoin, Ethereum e XRP
-/// Com simulador de investimento integrado
+/// Com simulador de investimento integrado e Tesouro Direto
 class HomeScreen extends StatefulWidget {
   final CryptoController controller;
 
@@ -23,29 +28,72 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selectedCurrency = Config.defaultCurrency;
   final InvestmentService _investmentService = InvestmentService();
+  final SettingsService _settingsService = SettingsService();
+  final TesouroService _tesouroService = TesouroService();
+  bool _isInBackground = false;
 
   @override
   void initState() {
     super.initState();
+    // Registra observer para ciclo de vida do app
+    WidgetsBinding.instance.addObserver(this);
+
     widget.controller.startAutoUpdate();
     widget.controller.addListener(_onControllerUpdate);
     _investmentService.addListener(_onInvestmentUpdate);
-    _initInvestmentService();
+    _settingsService.addListener(_onSettingsUpdate);
+    _tesouroService.addListener(_onTesouroUpdate);
+    _initServices();
   }
 
-  Future<void> _initInvestmentService() async {
+  Future<void> _initServices() async {
     await _investmentService.initialize();
+    await _settingsService.initialize();
+    await _tesouroService.initialize();
   }
 
   @override
   void dispose() {
+    // Remove observer
+    WidgetsBinding.instance.removeObserver(this);
+
     widget.controller.removeListener(_onControllerUpdate);
     _investmentService.removeListener(_onInvestmentUpdate);
+    _settingsService.removeListener(_onSettingsUpdate);
+    _tesouroService.removeListener(_onTesouroUpdate);
     widget.controller.stopAutoUpdate();
     super.dispose();
+  }
+
+  /// Detecta mudanças no ciclo de vida do app
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        // App foi para background -> PARA requisições
+        if (!_isInBackground) {
+          _isInBackground = true;
+          widget.controller.stopAutoUpdate();
+          debugPrint('📱 App em background - requisições pausadas');
+        }
+        break;
+      case AppLifecycleState.resumed:
+        // App voltou ao primeiro plano -> RETOMA requisições
+        if (_isInBackground) {
+          _isInBackground = false;
+          widget.controller.startAutoUpdate();
+          debugPrint('📱 App em foreground - requisições retomadas');
+        }
+        break;
+    }
   }
 
   void _onControllerUpdate() {
@@ -54,6 +102,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onInvestmentUpdate() {
     if (mounted) setState(() {});
+  }
+
+  void _onSettingsUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  void _onTesouroUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          settingsService: _settingsService,
+        ),
+      ),
+    );
   }
 
   @override
@@ -91,6 +157,12 @@ class _HomeScreenState extends State<HomeScreen> {
               const PopupMenuItem(value: 'BRL', child: Text('R\$ BRL')),
               const PopupMenuItem(value: 'USD', child: Text('\$ USD')),
             ],
+          ),
+          // Botão de configurações
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: _openSettings,
+            tooltip: 'Configurações',
           ),
         ],
       ),
@@ -131,7 +203,6 @@ class _HomeScreenState extends State<HomeScreen> {
           PortfolioSummaryCard(
             summary: summary,
             onTap: () {
-              // Scroll para o primeiro card ou mostra dica
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Toque em uma moeda para simular investimento'),
@@ -140,6 +211,11 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+
+          const SizedBox(height: 16),
+
+          // Card Tesouro Direto
+          TesouroCard(tesouroService: _tesouroService),
 
           const SizedBox(height: 16),
 
@@ -156,12 +232,37 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    'Atualização a cada ${Config.defaultUpdateInterval}s',
-                    style: TextStyle(
-                      color: theme.colorScheme.outline,
-                      fontSize: 12,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        'Atualização a cada ${Config.defaultUpdateInterval}s',
+                        style: TextStyle(
+                          color: theme.colorScheme.outline,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (_isInBackground) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'PAUSADO',
+                            style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -181,11 +282,29 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
+          const SizedBox(height: 12),
+
+          // Seletor de período do gráfico
+          Center(
+            child: ChartPeriodSelector(
+              selectedPeriod: widget.controller.currentPeriod,
+              onPeriodChanged: (period) {
+                widget.controller.changePeriod(period);
+              },
+              activeColor: theme.colorScheme.primary,
+            ),
+          ),
+
           const SizedBox(height: 16),
 
           // Cards das moedas
           ...widget.controller.prices.map((price) {
             final investment = _investmentService.getInvestment(price.coinId);
+            final variation = _selectedCurrency == 'BRL'
+                ? price.variationPercentageBrl
+                : price.variationPercentageUsd;
+            final suggestedAction =
+                _settingsService.getSuggestedAction(variation);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -194,6 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 currency: _selectedCurrency,
                 isLoadingHistory: widget.controller.isLoadingHistory,
                 investment: investment,
+                suggestedAction: suggestedAction,
                 onInvestmentTap: () => _showInvestmentDialog(price, investment),
                 onChartRetry: () =>
                     widget.controller.reloadHistoryFor(price.coinId),
@@ -259,7 +379,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (result != null) {
-      // Salva o novo investimento
       await _investmentService.setInvestment(result);
 
       if (mounted) {
@@ -274,9 +393,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
-    } else if (existingInvestment != null && result == null) {
-      // Se tinha investimento e retornou null, significa que quer remover
-      // (isso só acontece se o usuário clicou no botão Remover)
     }
   }
 

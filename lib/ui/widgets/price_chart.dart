@@ -1,5 +1,61 @@
 import 'package:flutter/material.dart';
 import '../../models/crypto_price.dart';
+import '../../utils/config.dart';
+
+/// Widget para selecionar o período do gráfico
+class ChartPeriodSelector extends StatelessWidget {
+  final ChartPeriod selectedPeriod;
+  final ValueChanged<ChartPeriod> onPeriodChanged;
+  final Color? activeColor;
+
+  const ChartPeriodSelector({
+    super.key,
+    required this.selectedPeriod,
+    required this.onPeriodChanged,
+    this.activeColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = activeColor ?? theme.colorScheme.primary;
+
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: ChartPeriod.values.map((period) {
+          final isSelected = period == selectedPeriod;
+          return GestureDetector(
+            onTap: () => onPeriodChanged(period),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? color : Colors.transparent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                period.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected 
+                      ? Colors.white 
+                      : theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
 
 /// Widget que exibe um gráfico de linha do histórico de preços
 ///

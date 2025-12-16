@@ -8,8 +8,14 @@ class Config {
   // ============================================
 
   /// Percentual de variação para sugerir ação de compra/venda
-  /// Padrão: 3.0% (valor configurável)
-  static const double defaultVariationThreshold = 3.0;
+  /// Padrão: 10.0% (valor configurável pelo usuário)
+  static const double defaultVariationThreshold = 10.0;
+
+  /// Threshold mínimo permitido
+  static const double minVariationThreshold = 1.0;
+
+  /// Threshold máximo permitido
+  static const double maxVariationThreshold = 15.0;
 
   // ============================================
   // Configurações de Moeda
@@ -29,12 +35,16 @@ class Config {
   /// URL base da API CoinGecko
   static const String coinGeckoBaseUrl = 'https://api.coingecko.com/api/v3';
 
+  /// URL da API do Banco Central para taxa SELIC
+  static const String bcbSelicUrl =
+      'https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados?formato=json';
+
   // ============================================
   // Configurações de Atualização
   // ============================================
 
-  /// Intervalo de atualização padrão em segundos (10s para todos)
-  static const int defaultUpdateInterval = 10;
+  /// Intervalo de atualização padrão em segundos (60s = 1 minuto)
+  static const int defaultUpdateInterval = 60;
 
   /// Máximo de alertas
   static const int maxAlerts = 999;
@@ -75,16 +85,29 @@ class Config {
   static const Map<String, int> coinColors = {
     'bitcoin': 0xFFF7931A, // Laranja Bitcoin
     'ethereum': 0xFF627EEA, // Roxo/Azul Ethereum
-    'ripple': 0xFF23292F, // Cinza escuro XRP
+    'ripple': 0xFF00AAE4, // Azul claro XRP (cor oficial)
   };
 
   // ============================================
   // Configurações de Gráfico
   // ============================================
 
-  /// Dias de histórico para o gráfico
+  /// Dias de histórico padrão para o gráfico
   static const int chartHistoryDays = 7;
 
   /// Intervalo de pontos no gráfico (em horas)
   static const int chartIntervalHours = 6;
+}
+
+/// Períodos disponíveis para o gráfico
+enum ChartPeriod {
+  hours24('24H', 1),    // 24 horas = 1 dia
+  days7('7D', 7),       // 7 dias
+  month1('1M', 30),     // 1 mês
+  year1('1A', 365);     // 1 ano
+
+  final String label;
+  final int days;
+
+  const ChartPeriod(this.label, this.days);
 }
