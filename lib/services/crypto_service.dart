@@ -198,11 +198,11 @@ class CryptoService {
     for (final coinId in Config.supportedCoins) {
       if (json.containsKey(coinId)) {
         final coinData = json[coinId] as Map<String, dynamic>;
-        
+
         // Extrai variação 24h (a API retorna como usd_24h_change e brl_24h_change)
         final change24hUsd = coinData['usd_24h_change'] as num?;
         final change24hBrl = coinData['brl_24h_change'] as num?;
-        
+
         prices.add(CryptoPrice(
           coinId: coinId,
           priceUsd: (coinData['usd'] as num).toDouble(),
@@ -211,8 +211,9 @@ class CryptoService {
           change24hBrl: change24hBrl?.toDouble(),
           lastUpdate: now,
         ));
-        
-        debugPrint('$coinId: USD ${coinData['usd']}, 24h change: ${change24hUsd?.toStringAsFixed(2)}%');
+
+        debugPrint(
+            '$coinId: USD ${coinData['usd']}, 24h change: ${change24hUsd?.toStringAsFixed(2)}%');
       } else {
         debugPrint('Moeda não encontrada: $coinId');
       }
