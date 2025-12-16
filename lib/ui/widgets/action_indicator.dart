@@ -3,7 +3,7 @@ import '../../controllers/bitcoin_controller.dart';
 
 /// Widget para exibir o indicador visual de ação sugerida
 class ActionIndicator extends StatelessWidget {
-  final Action action;
+  final SuggestedAction action;
   final double? variationPercentage;
   
   const ActionIndicator({
@@ -60,13 +60,12 @@ class ActionIndicator extends StatelessWidget {
   
   (IconData, String, Color) _getActionData() {
     switch (action) {
-      case Action.buy:
+      case SuggestedAction.buy:
         return (Icons.trending_down, 'COMPRAR', Colors.green);
-      case Action.sell:
+      case SuggestedAction.sell:
         return (Icons.trending_up, 'VENDER', Colors.red);
-      case Action.hold:
+      case SuggestedAction.hold:
         return (Icons.trending_flat, 'MANTER', Colors.orange);
     }
   }
 }
-
