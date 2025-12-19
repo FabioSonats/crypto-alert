@@ -9,7 +9,7 @@ import '../widgets/trend_indicator.dart';
 import 'crypto_detail_screen.dart';
 import 'settings_screen.dart';
 
-/// Tela principal do aplicativo Crypto Alert
+/// Tela principal do aplicativo NexusStack
 ///
 /// Exibe lista de 26 criptomoedas com preço e variação
 /// Gráficos são carregados sob demanda na tela de detalhes
@@ -159,9 +159,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.radar),
+            Icon(Icons.hub),
             SizedBox(width: 8),
-            Text('Radar de Mercado'),
+            Text('NexusStack'),
           ],
         ),
         centerTitle: true,
