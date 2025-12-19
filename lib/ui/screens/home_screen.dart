@@ -30,6 +30,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final InvestmentService _investmentService = InvestmentService();
   final SettingsService _settingsService = SettingsService();
   bool _isInBackground = false;
+  
+  // Campo de busca
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -41,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     widget.controller.addListener(_onControllerUpdate);
     _investmentService.addListener(_onInvestmentUpdate);
     _settingsService.addListener(_onSettingsUpdate);
+    _searchController.addListener(_onSearchChanged);
     _initServices();
   }
 
@@ -57,8 +62,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     widget.controller.removeListener(_onControllerUpdate);
     _investmentService.removeListener(_onInvestmentUpdate);
     _settingsService.removeListener(_onSettingsUpdate);
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     widget.controller.stopAutoUpdate();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+    });
+  }
+
+  /// Filtra moedas pelo termo de busca
+  List<dynamic> _filterPrices(List<dynamic> prices) {
+    if (_searchQuery.isEmpty) return prices;
+    
+    return prices.where((price) {
+      final name = price.name.toLowerCase();
+      final symbol = price.symbol.toLowerCase();
+      return name.contains(_searchQuery) || symbol.contains(_searchQuery);
+    }).toList();
   }
 
   /// Detecta mudanças no ciclo de vida do app
@@ -285,6 +309,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                   ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // Campo de busca
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar moeda...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
               ],
             ),
           ),
@@ -351,13 +401,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Constrói as seções de moedas separadas por sugestão de ação
   List<Widget> _buildCryptoSections(ThemeData theme) {
     final threshold = _settingsService.variationThreshold;
+    final filteredPrices = _filterPrices(widget.controller.prices);
+    
+    // Mostra mensagem se busca não encontrou resultados
+    if (filteredPrices.isEmpty && _searchQuery.isNotEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.search_off,
+                  size: 48,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Nenhuma moeda encontrada',
+                  style: TextStyle(
+                    color: theme.colorScheme.outline,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tente buscar por "$_searchQuery"',
+                  style: TextStyle(
+                    color: theme.colorScheme.outline.withOpacity(0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
     
     // Separa moedas por categoria
     final sellCoins = <dynamic>[];  // Variação > threshold (VENDER)
     final holdCoins = <dynamic>[];  // Entre -threshold e +threshold (MANTER)
     final buyCoins = <dynamic>[];   // Variação < -threshold (COMPRAR)
 
-    for (final price in widget.controller.prices) {
+    for (final price in filteredPrices) {
       final variation = _selectedCurrency == 'BRL'
           ? price.variationPercentageBrl ?? 0.0
           : price.variationPercentageUsd ?? 0.0;
