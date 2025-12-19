@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../controllers/crypto_controller.dart';
+import '../../models/crypto_price.dart';
 import '../../models/investment.dart';
+import '../../services/crypto_service.dart';
 import '../../services/investment_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/config.dart';
 import '../widgets/portfolio_summary_card.dart';
+import '../widgets/price_chart.dart';
 import '../widgets/trend_indicator.dart';
 import 'crypto_detail_screen.dart';
 import 'settings_screen.dart';
@@ -637,6 +640,23 @@ class _CryptoListItem extends StatelessWidget {
     required this.onTap,
   });
 
+  void _showChartPreview(BuildContext context) {
+    final coinColor = Color(price.colorValue);
+    
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (context) => _ChartPreviewDialog(
+        coinId: price.coinId,
+        coinName: price.name,
+        coinSymbol: price.symbol,
+        coinColor: coinColor,
+        currentPrice: price.getFormattedPrice(currency),
+        variation: price.getFormattedVariation(currency),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -654,6 +674,7 @@ class _CryptoListItem extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
         onTap: onTap,
+        onLongPress: () => _showChartPreview(context),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -817,6 +838,216 @@ class _CryptoListItem extends StatelessWidget {
           color: color,
           fontSize: 9,
           fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog que mostra preview do gráfico ao segurar
+class _ChartPreviewDialog extends StatefulWidget {
+  final String coinId;
+  final String coinName;
+  final String coinSymbol;
+  final Color coinColor;
+  final String currentPrice;
+  final String variation;
+
+  const _ChartPreviewDialog({
+    required this.coinId,
+    required this.coinName,
+    required this.coinSymbol,
+    required this.coinColor,
+    required this.currentPrice,
+    required this.variation,
+  });
+
+  @override
+  State<_ChartPreviewDialog> createState() => _ChartPreviewDialogState();
+}
+
+class _ChartPreviewDialogState extends State<_ChartPreviewDialog> {
+  final CryptoService _cryptoService = CryptoService();
+  List<PricePoint> _priceHistory = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChart();
+  }
+
+  @override
+  void dispose() {
+    _cryptoService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadChart() async {
+    try {
+      final history = await _cryptoService.fetchPriceHistory(
+        widget.coinId,
+        days: 7, // 7 dias de preview
+      );
+      if (mounted) {
+        setState(() {
+          _priceHistory = history;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: 320,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: widget.coinColor.withOpacity(0.3),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: widget.coinColor.withOpacity(0.2),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: widget.coinColor.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.coinSymbol.substring(0, 1),
+                      style: TextStyle(
+                        color: widget.coinColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.coinName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        widget.coinSymbol,
+                        style: TextStyle(
+                          color: theme.colorScheme.outline,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  iconSize: 20,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Preço e variação
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.currentPrice,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.variation.contains('-')
+                        ? Colors.red.withOpacity(0.1)
+                        : Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    widget.variation,
+                    style: TextStyle(
+                      color: widget.variation.contains('-')
+                          ? Colors.red
+                          : Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Gráfico
+            Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: PriceChart(
+                  priceHistory: _priceHistory,
+                  lineColor: widget.coinColor,
+                  height: 150,
+                  isLoading: _isLoading,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Legenda
+            Text(
+              'Últimos 7 dias',
+              style: TextStyle(
+                color: theme.colorScheme.outline,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
