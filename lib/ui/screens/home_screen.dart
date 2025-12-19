@@ -290,29 +290,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
 
-        // Lista de moedas
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final price = widget.controller.prices[index];
-              final investment = _investmentService.getInvestment(price.coinId);
-              final variation = _selectedCurrency == 'BRL'
-                  ? price.variationPercentageBrl
-                  : price.variationPercentageUsd;
-              final suggestedAction =
-                  _settingsService.getSuggestedAction(variation);
-
-              return _CryptoListItem(
-                price: price,
-                currency: _selectedCurrency,
-                investment: investment,
-                suggestedAction: suggestedAction,
-                onTap: () => _openCryptoDetail(price),
-              );
-            },
-            childCount: widget.controller.prices.length,
-          ),
-        ),
+        // Seções de moedas separadas por sugestão
+        ..._buildCryptoSections(theme),
 
         // Mensagem de erro
         if (widget.controller.errorMessage != null)
@@ -366,6 +345,174 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: SizedBox(height: 32),
         ),
       ],
+    );
+  }
+
+  /// Constrói as seções de moedas separadas por sugestão de ação
+  List<Widget> _buildCryptoSections(ThemeData theme) {
+    final threshold = _settingsService.variationThreshold;
+    
+    // Separa moedas por categoria
+    final sellCoins = <dynamic>[];  // Variação > threshold (VENDER)
+    final holdCoins = <dynamic>[];  // Entre -threshold e +threshold (MANTER)
+    final buyCoins = <dynamic>[];   // Variação < -threshold (COMPRAR)
+
+    for (final price in widget.controller.prices) {
+      final variation = _selectedCurrency == 'BRL'
+          ? price.variationPercentageBrl ?? 0.0
+          : price.variationPercentageUsd ?? 0.0;
+
+      if (variation >= threshold) {
+        sellCoins.add(price);
+      } else if (variation <= -threshold) {
+        buyCoins.add(price);
+      } else {
+        holdCoins.add(price);
+      }
+    }
+
+    // Ordena cada grupo por variação
+    sellCoins.sort((a, b) {
+      final varA = _selectedCurrency == 'BRL' ? a.variationPercentageBrl ?? 0.0 : a.variationPercentageUsd ?? 0.0;
+      final varB = _selectedCurrency == 'BRL' ? b.variationPercentageBrl ?? 0.0 : b.variationPercentageUsd ?? 0.0;
+      return varB.compareTo(varA);
+    });
+    holdCoins.sort((a, b) {
+      final varA = _selectedCurrency == 'BRL' ? a.variationPercentageBrl ?? 0.0 : a.variationPercentageUsd ?? 0.0;
+      final varB = _selectedCurrency == 'BRL' ? b.variationPercentageBrl ?? 0.0 : b.variationPercentageUsd ?? 0.0;
+      return varB.compareTo(varA);
+    });
+    buyCoins.sort((a, b) {
+      final varA = _selectedCurrency == 'BRL' ? a.variationPercentageBrl ?? 0.0 : a.variationPercentageUsd ?? 0.0;
+      final varB = _selectedCurrency == 'BRL' ? b.variationPercentageBrl ?? 0.0 : b.variationPercentageUsd ?? 0.0;
+      return varB.compareTo(varA);
+    });
+
+    final sections = <Widget>[];
+
+    // Seção VENDER (em alta)
+    if (sellCoins.isNotEmpty) {
+      sections.add(_buildSectionHeader(
+        theme,
+        '📈 Em Alta',
+        'Sugestão: VENDER',
+        Colors.red,
+        sellCoins.length,
+      ));
+      sections.add(_buildCoinsList(sellCoins, SuggestedAction.sell));
+    }
+
+    // Seção MANTER (estável)
+    if (holdCoins.isNotEmpty) {
+      sections.add(_buildSectionHeader(
+        theme,
+        '➡️ Estável',
+        'Sugestão: MANTER',
+        Colors.orange,
+        holdCoins.length,
+      ));
+      sections.add(_buildCoinsList(holdCoins, SuggestedAction.hold));
+    }
+
+    // Seção COMPRAR (em baixa)
+    if (buyCoins.isNotEmpty) {
+      sections.add(_buildSectionHeader(
+        theme,
+        '📉 Em Baixa',
+        'Sugestão: COMPRAR',
+        Colors.green,
+        buyCoins.length,
+      ));
+      sections.add(_buildCoinsList(buyCoins, SuggestedAction.buy));
+    }
+
+    return sections;
+  }
+
+  Widget _buildSectionHeader(
+    ThemeData theme,
+    String title,
+    String subtitle,
+    Color color,
+    int count,
+  ) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoinsList(List<dynamic> coins, SuggestedAction defaultAction) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final price = coins[index];
+          final investment = _investmentService.getInvestment(price.coinId);
+          final variation = _selectedCurrency == 'BRL'
+              ? price.variationPercentageBrl
+              : price.variationPercentageUsd;
+          final suggestedAction = _settingsService.getSuggestedAction(variation);
+
+          return _CryptoListItem(
+            price: price,
+            currency: _selectedCurrency,
+            investment: investment,
+            suggestedAction: suggestedAction,
+            onTap: () => _openCryptoDetail(price),
+          );
+        },
+        childCount: coins.length,
+      ),
     );
   }
 
