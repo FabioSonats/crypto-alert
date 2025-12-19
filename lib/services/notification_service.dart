@@ -109,7 +109,7 @@ class NotificationService {
     // TODO: Implementar notificação de teste real
     // await FlutterLocalNotificationsPlugin().show(
     //   0,
-    //   '🔔 Crypto Alert',
+    //   '🔔 NexusStack',
     //   'Notificações configuradas com sucesso!',
     //   const NotificationDetails(...),
     // );

@@ -1,4 +1,4 @@
-/// Configurações centralizadas do aplicativo Crypto Alert
+/// Configurações centralizadas do aplicativo NexusStack
 ///
 /// Este arquivo contém todas as constantes de configuração
 /// seguindo o princípio de Single Responsibility (SOLID)

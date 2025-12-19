@@ -3,21 +3,21 @@ import 'controllers/crypto_controller.dart';
 import 'services/notification_service.dart';
 import 'ui/screens/home_screen.dart';
 
-/// Função principal do aplicativo Crypto Alert
+/// Função principal do aplicativo NexusStack
 ///
-/// Monitora Bitcoin, Ethereum e XRP em tempo real
+/// Monitor de 26 criptomoedas com alertas e simulador de investimentos
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inicializa serviço de notificações
   await NotificationService.instance.initialize();
 
-  runApp(const CryptoAlertApp());
+  runApp(const NexusStackApp());
 }
 
 /// Widget principal da aplicação
-class CryptoAlertApp extends StatelessWidget {
-  const CryptoAlertApp({super.key});
+class NexusStackApp extends StatelessWidget {
+  const NexusStackApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +25,11 @@ class CryptoAlertApp extends StatelessWidget {
     final controller = CryptoController();
 
     return MaterialApp(
-      title: 'Crypto Alert',
+      title: 'NexusStack',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88E5),
+          seedColor: const Color(0xFF6C5CE7), // Roxo tech
           brightness: Brightness.light,
         ),
         useMaterial3: true,
@@ -46,7 +46,7 @@ class CryptoAlertApp extends StatelessWidget {
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88E5),
+          seedColor: const Color(0xFF6C5CE7), // Roxo tech
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
