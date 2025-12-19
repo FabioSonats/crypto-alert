@@ -3,19 +3,16 @@ import '../../controllers/crypto_controller.dart';
 import '../../models/investment.dart';
 import '../../services/investment_service.dart';
 import '../../services/settings_service.dart';
-import '../../services/tesouro_service.dart';
 import '../../utils/config.dart';
-import '../widgets/crypto_card.dart';
-import '../widgets/investment_input.dart';
 import '../widgets/portfolio_summary_card.dart';
-import '../widgets/price_chart.dart';
-import '../widgets/tesouro_card.dart';
+import '../widgets/trend_indicator.dart';
+import 'crypto_detail_screen.dart';
 import 'settings_screen.dart';
 
 /// Tela principal do aplicativo Crypto Alert
 ///
-/// Exibe as 3 criptomoedas: Bitcoin, Ethereum e XRP
-/// Com simulador de investimento integrado e Tesouro Direto
+/// Exibe lista de 26 criptomoedas com preço e variação
+/// Gráficos são carregados sob demanda na tela de detalhes
 class HomeScreen extends StatefulWidget {
   final CryptoController controller;
 
@@ -32,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selectedCurrency = Config.defaultCurrency;
   final InvestmentService _investmentService = InvestmentService();
   final SettingsService _settingsService = SettingsService();
-  final TesouroService _tesouroService = TesouroService();
   bool _isInBackground = false;
 
   @override
@@ -45,14 +41,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     widget.controller.addListener(_onControllerUpdate);
     _investmentService.addListener(_onInvestmentUpdate);
     _settingsService.addListener(_onSettingsUpdate);
-    _tesouroService.addListener(_onTesouroUpdate);
     _initServices();
   }
 
   Future<void> _initServices() async {
     await _investmentService.initialize();
     await _settingsService.initialize();
-    await _tesouroService.initialize();
   }
 
   @override
@@ -63,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     widget.controller.removeListener(_onControllerUpdate);
     _investmentService.removeListener(_onInvestmentUpdate);
     _settingsService.removeListener(_onSettingsUpdate);
-    _tesouroService.removeListener(_onTesouroUpdate);
     widget.controller.stopAutoUpdate();
     super.dispose();
   }
@@ -108,10 +101,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
-  void _onTesouroUpdate() {
-    if (mounted) setState(() {});
-  }
-
   void _openSettings() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -120,6 +109,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  void _openCryptoDetail(dynamic price) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CryptoDetailScreen(
+          price: price,
+          investmentService: _investmentService,
+          settingsService: _settingsService,
+        ),
+      ),
+    ).then((_) {
+      // Atualiza ao voltar para refletir mudanças de investimento
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -131,9 +135,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.currency_bitcoin),
+            Icon(Icons.radar),
             SizedBox(width: 8),
-            Text('Crypto Alert'),
+            Text('Radar de Mercado'),
           ],
         ),
         centerTitle: true,
@@ -193,207 +197,323 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final summary =
         _investmentService.calculateSummary(widget.controller.prices);
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Card de Portfólio (resumo dos investimentos)
-          PortfolioSummaryCard(
-            summary: summary,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Toque em uma moeda para simular investimento'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          // Card Tesouro Direto
-          TesouroCard(tesouroService: _tesouroService),
-
-          const SizedBox(height: 16),
-
-          // Header com status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cotações em tempo real',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        'Atualização a cada ${Config.defaultUpdateInterval}s',
-                        style: TextStyle(
-                          color: theme.colorScheme.outline,
-                          fontSize: 12,
+    return CustomScrollView(
+      slivers: [
+        // Cabeçalho com portfólio
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Card de Portfólio (resumo dos investimentos)
+                if (_investmentService.hasInvestments)
+                  PortfolioSummaryCard(
+                    summary: summary,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Toque em uma moeda para ver detalhes'),
+                          duration: Duration(seconds: 2),
                         ),
-                      ),
-                      if (_isInBackground) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                      );
+                    },
+                  ),
+
+                if (_investmentService.hasInvestments)
+                  const SizedBox(height: 16),
+
+                // Header com status
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Criptomoedas',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'PAUSADO',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              '${widget.controller.prices.length} moedas • Atualiza a cada ${Config.defaultUpdateInterval}s',
+                              style: TextStyle(
+                                color: theme.colorScheme.outline,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
+                            if (_isInBackground) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'PAUSADO',
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
+                    ),
+                    // Indicador de loading
+                    if (widget.controller.isLoading)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 20,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Seções de moedas separadas por sugestão
+        ..._buildCryptoSections(theme),
+
+        // Mensagem de erro
+        if (widget.controller.errorMessage != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Card(
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.controller.errorMessage!,
+                          style: TextStyle(
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ],
-              ),
-              // Indicador de loading
-              if (widget.controller.isLoading)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 20,
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Seletor de período do gráfico
-          Center(
-            child: ChartPeriodSelector(
-              selectedPeriod: widget.controller.currentPeriod,
-              onPeriodChanged: (period) {
-                widget.controller.changePeriod(period);
-              },
-              activeColor: theme.colorScheme.primary,
+              ),
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // Cards das moedas
-          ...widget.controller.prices.map((price) {
-            final investment = _investmentService.getInvestment(price.coinId);
-            final variation = _selectedCurrency == 'BRL'
-                ? price.variationPercentageBrl
-                : price.variationPercentageUsd;
-            final suggestedAction =
-                _settingsService.getSuggestedAction(variation);
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: CryptoCard(
-                price: price,
-                currency: _selectedCurrency,
-                isLoadingHistory: widget.controller.isLoadingHistory,
-                investment: investment,
-                suggestedAction: suggestedAction,
-                onInvestmentTap: () => _showInvestmentDialog(price, investment),
-                onChartRetry: () =>
-                    widget.controller.reloadHistoryFor(price.coinId),
+        // Última atualização
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: Text(
+                _getLastUpdateText(),
+                style: TextStyle(
+                  color: theme.colorScheme.outline,
+                  fontSize: 12,
+                ),
               ),
-            );
-          }),
+            ),
+          ),
+        ),
 
-          // Mensagem de erro
-          if (widget.controller.errorMessage != null) ...[
-            const SizedBox(height: 8),
-            Card(
-              color: theme.colorScheme.errorContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: theme.colorScheme.error,
+        // Espaço no final
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 32),
+        ),
+      ],
+    );
+  }
+
+  /// Constrói as seções de moedas separadas por sugestão de ação
+  List<Widget> _buildCryptoSections(ThemeData theme) {
+    final threshold = _settingsService.variationThreshold;
+    
+    // Separa moedas por categoria
+    final sellCoins = <dynamic>[];  // Variação > threshold (VENDER)
+    final holdCoins = <dynamic>[];  // Entre -threshold e +threshold (MANTER)
+    final buyCoins = <dynamic>[];   // Variação < -threshold (COMPRAR)
+
+    for (final price in widget.controller.prices) {
+      final variation = _selectedCurrency == 'BRL'
+          ? price.variationPercentageBrl ?? 0.0
+          : price.variationPercentageUsd ?? 0.0;
+
+      if (variation >= threshold) {
+        sellCoins.add(price);
+      } else if (variation <= -threshold) {
+        buyCoins.add(price);
+      } else {
+        holdCoins.add(price);
+      }
+    }
+
+    // Ordena cada grupo por variação
+    sellCoins.sort((a, b) {
+      final varA = _selectedCurrency == 'BRL' ? a.variationPercentageBrl ?? 0.0 : a.variationPercentageUsd ?? 0.0;
+      final varB = _selectedCurrency == 'BRL' ? b.variationPercentageBrl ?? 0.0 : b.variationPercentageUsd ?? 0.0;
+      return varB.compareTo(varA);
+    });
+    holdCoins.sort((a, b) {
+      final varA = _selectedCurrency == 'BRL' ? a.variationPercentageBrl ?? 0.0 : a.variationPercentageUsd ?? 0.0;
+      final varB = _selectedCurrency == 'BRL' ? b.variationPercentageBrl ?? 0.0 : b.variationPercentageUsd ?? 0.0;
+      return varB.compareTo(varA);
+    });
+    buyCoins.sort((a, b) {
+      final varA = _selectedCurrency == 'BRL' ? a.variationPercentageBrl ?? 0.0 : a.variationPercentageUsd ?? 0.0;
+      final varB = _selectedCurrency == 'BRL' ? b.variationPercentageBrl ?? 0.0 : b.variationPercentageUsd ?? 0.0;
+      return varB.compareTo(varA);
+    });
+
+    final sections = <Widget>[];
+
+    // Seção VENDER (em alta)
+    if (sellCoins.isNotEmpty) {
+      sections.add(_buildSectionHeader(
+        theme,
+        '📈 Em Alta',
+        'Sugestão: VENDER',
+        Colors.red,
+        sellCoins.length,
+      ));
+      sections.add(_buildCoinsList(sellCoins, SuggestedAction.sell));
+    }
+
+    // Seção MANTER (estável)
+    if (holdCoins.isNotEmpty) {
+      sections.add(_buildSectionHeader(
+        theme,
+        '➡️ Estável',
+        'Sugestão: MANTER',
+        Colors.orange,
+        holdCoins.length,
+      ));
+      sections.add(_buildCoinsList(holdCoins, SuggestedAction.hold));
+    }
+
+    // Seção COMPRAR (em baixa)
+    if (buyCoins.isNotEmpty) {
+      sections.add(_buildSectionHeader(
+        theme,
+        '📉 Em Baixa',
+        'Sugestão: COMPRAR',
+        Colors.green,
+        buyCoins.length,
+      ));
+      sections.add(_buildCoinsList(buyCoins, SuggestedAction.buy));
+    }
+
+    return sections;
+  }
+
+  Widget _buildSectionHeader(
+    ThemeData theme,
+    String title,
+    String subtitle,
+    Color color,
+    int count,
+  ) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.controller.errorMessage!,
-                        style: TextStyle(
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               ),
             ),
           ],
-
-          const SizedBox(height: 16),
-
-          // Última atualização
-          Center(
-            child: Text(
-              _getLastUpdateText(),
-              style: TextStyle(
-                color: theme.colorScheme.outline,
-                fontSize: 12,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
 
-  Future<void> _showInvestmentDialog(
-    dynamic price,
-    Investment? existingInvestment,
-  ) async {
-    final result = await InvestmentInputDialog.show(
-      context,
-      price,
-      existingInvestment: existingInvestment,
+  Widget _buildCoinsList(List<dynamic> coins, SuggestedAction defaultAction) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final price = coins[index];
+          final investment = _investmentService.getInvestment(price.coinId);
+          final variation = _selectedCurrency == 'BRL'
+              ? price.variationPercentageBrl
+              : price.variationPercentageUsd;
+          final suggestedAction = _settingsService.getSuggestedAction(variation);
+
+          return _CryptoListItem(
+            price: price,
+            currency: _selectedCurrency,
+            investment: investment,
+            suggestedAction: suggestedAction,
+            onTap: () => _openCryptoDetail(price),
+          );
+        },
+        childCount: coins.length,
+      ),
     );
-
-    if (result != null) {
-      await _investmentService.setInvestment(result);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              existingInvestment == null
-                  ? 'Investimento simulado em ${price.name}!'
-                  : 'Investimento atualizado!',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
   }
 
   String _getLastUpdateText() {
@@ -411,5 +531,207 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } else {
       return 'Atualizado há ${diff.inHours}h';
     }
+  }
+}
+
+/// Item da lista de criptomoedas
+class _CryptoListItem extends StatelessWidget {
+  final dynamic price;
+  final String currency;
+  final Investment? investment;
+  final SuggestedAction? suggestedAction;
+  final VoidCallback onTap;
+
+  const _CryptoListItem({
+    required this.price,
+    required this.currency,
+    this.investment,
+    this.suggestedAction,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final coinColor = Color(price.colorValue);
+    final variation = currency == 'BRL'
+        ? price.variationPercentageBrl
+        : price.variationPercentageUsd;
+    final variationColor = variation == null
+        ? Colors.grey
+        : variation >= 0
+            ? Colors.green
+            : Colors.red;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Ícone da moeda
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: coinColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    price.symbol.substring(0, 1),
+                    style: TextStyle(
+                      color: coinColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // Nome e símbolo
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            price.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        TrendIndicator(
+                          trend: price.trend,
+                          size: 16,
+                          animated: false,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          price.symbol,
+                          style: TextStyle(
+                            color: theme.colorScheme.outline,
+                            fontSize: 12,
+                          ),
+                        ),
+                        // Badge de investimento
+                        if (investment != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: coinColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '💰',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        ],
+                        // Badge de ação sugerida
+                        if (suggestedAction != null &&
+                            suggestedAction != SuggestedAction.hold) ...[
+                          const SizedBox(width: 4),
+                          _buildMiniActionBadge(suggestedAction!),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Preço e variação
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    price.getFormattedPrice(currency),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: variationColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      price.getFormattedVariation(currency),
+                      style: TextStyle(
+                        color: variationColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(width: 8),
+
+              // Seta de navegação
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.outline,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniActionBadge(SuggestedAction action) {
+    final color = action == SuggestedAction.buy
+        ? Colors.green
+        : action == SuggestedAction.sell
+            ? Colors.red
+            : Colors.orange;
+    final text = action == SuggestedAction.buy
+        ? 'C'
+        : action == SuggestedAction.sell
+            ? 'V'
+            : 'M';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 }

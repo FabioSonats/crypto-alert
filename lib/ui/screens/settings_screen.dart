@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/settings_service.dart';
 import '../../utils/config.dart';
-import '../widgets/app_icon.dart';
 
 /// Tela de configurações do aplicativo
 ///
@@ -225,56 +224,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
-
-          // Sobre o App
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const AppIcon(size: 80),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Crypto Alert',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'v1.0.0',
-                    style: TextStyle(
-                      color: theme.colorScheme.outline,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Monitore suas criptomoedas e simule investimentos em tempo real.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: theme.colorScheme.outline,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const IconPreviewScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.visibility),
-                    label: const Text('Ver ícone em detalhes'),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
