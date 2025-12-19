@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:crypto_alert/main.dart';
+import 'package:nexus_stack/main.dart';
 
 void main() {
   testWidgets('App should load', (WidgetTester tester) async {
-    await tester.pumpWidget(const CryptoAlertApp());
-    expect(find.text('Crypto Alert'), findsOneWidget);
+    await tester.pumpWidget(const NexusStackApp());
+    expect(find.text('NexusStack'), findsOneWidget);
   });
 }
